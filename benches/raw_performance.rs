@@ -190,7 +190,7 @@ impl ConnectOptions for MockConnectOptions {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 struct MockTable {
     pub id: Option<String>,
     pub name: Option<String>,

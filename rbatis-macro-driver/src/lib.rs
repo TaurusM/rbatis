@@ -60,7 +60,7 @@ pub fn sql(args: TokenStream, func: TokenStream) -> TokenStream {
 /// pub struct BizActivity{}
 ///
 /// #[py_sql("select * from biz_activity where delete_flag = 0")]
-/// async fn py_select_page(rb: &dyn Executor, name: &str) -> Vec<BizActivity> { }
+/// async fn py_select_page(name: &str) -> (String, Vec<rbs::Value>) { }
 ///```
 ///  or more example:
 ///```rust
@@ -95,7 +95,7 @@ pub fn sql(args: TokenStream, func: TokenStream) -> TokenStream {
 ///         otherwise:
 ///           AND age = 0
 ///     WHERE id  = '2'")]
-///   pub async fn py_select_rb(rb: &dyn Executor, name: &str) -> Option<BizActivity> {}
+///   pub async fn py_select_rb(name: &str) -> (String, Vec<rbs::Value>) {}
 /// ```
 /// or read from file
 /// ```rust
@@ -149,8 +149,9 @@ pub fn py_sql(args: TokenStream, func: TokenStream) -> TokenStream {
 ///                 ` and name != '' `
 ///             </trim>
 ///         </where>
+///         `limit 0,10`
 ///   </select>"#)]
-/// pub async fn select_by_name(rbatis: &dyn Executor, name: &str) -> Option<BizActivity> {}
+/// pub async fn select_by_name(name: &str) -> (String, Vec<rbs::Value>) {}
 /// ```
 /// or from file
 /// ```rust

@@ -11,6 +11,7 @@ extern crate rbatis;
 
 #[cfg(test)]
 mod test {
+    use dark_std::sync::SyncVec;
     use futures_core::future::BoxFuture;
     use rbatis::executor::{Executor, RBatisConnExecutor};
     use rbatis::intercept::{Intercept, ResultType};
@@ -24,7 +25,6 @@ mod test {
     use std::collections::HashMap;
     use std::fmt::{Debug, Formatter};
     use std::sync::Arc;
-    use dark_std::sync::SyncVec;
 
     #[derive(Debug)]
     pub struct MockIntercept {
@@ -206,11 +206,13 @@ mod test {
             let queue = Arc::new(SyncVec::new());
             rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
             #[py_sql("select ${id},${id},#{id},#{id} ")]
-            pub async fn test_same_id(rb: &RBatis, id: &u64) -> Result<Value, Error> {
+            pub async fn test_same_id(id: &u64) -> Result<(String, Vec<Value>), Error> {
                 impled!()
             }
-            let r = test_same_id(&mut rb, &1).await.unwrap();
-            let (sql, args) = queue.pop().unwrap();
+            let r = test_same_id(&1).unwrap();
+            println!("r: {:?}", r);
+            let sql = r.0.to_owned();
+            let args = r.1.to_owned();
             assert_eq!(sql, "select 1,1,?,?");
             assert_eq!(args, vec![Value::U64(1), Value::U64(1)]);
         };
@@ -225,10 +227,12 @@ mod test {
             let queue = Arc::new(SyncVec::new());
             rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
 
-            pysql!(test_same_id(rb: &RBatis, id: &u64)  -> Result<Value, Error> => "select ${id},${id},#{id},#{id} ");
+            pysql!(test_same_id(id: &u64)  -> Result<(String, Vec<Value>), Error> => "select ${id},${id},#{id},#{id} ");
 
-            let r = test_same_id(&mut rb, &1).await.unwrap();
-            let (sql, args) = queue.pop().unwrap();
+            let r = test_same_id(&1).unwrap();
+            println!("r: {:?}", r);
+            let sql = r.0.to_owned();
+            let args = r.1.to_owned();
             assert_eq!(sql, "select 1,1,?,?");
             assert_eq!(args, vec![Value::U64(1), Value::U64(1)]);
         };
