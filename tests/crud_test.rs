@@ -835,7 +835,7 @@ mod test {
             let sql = r.get(1).unwrap().0.to_owned();
             let args = r.get(1).unwrap().1.to_owned();
             println!("{}", sql);
-            assert_eq!(sql, "select * from mock_table where name != '' limit 0,10");
+            assert_eq!(sql, "select id,name,pc_link,h5_link,pc_banner_img,h5_banner_img,sort,status,remark,create_time,version,delete_flag,count from mock_table where name != '' limit 0,10");
             println!("r: {:?}", r);
             let sql = r.get(0).unwrap().0.to_owned();
             let args = r.get(0).unwrap().1.to_owned();
@@ -860,7 +860,7 @@ mod test {
             let sql = r.0.to_owned();
             let args = r.1.to_owned();
             println!("{}", sql);
-            assert_eq!(sql.trim(), "select * from mock_table  where id = ?");
+            assert_eq!(sql.trim(), "select id,name,pc_link,h5_link,pc_banner_img,h5_banner_img,sort,status,remark,create_time,version,delete_flag,count from mock_table  where id = ?");
             assert_eq!(args, vec![to_value!("1")]);
         };
         block_on(f);
@@ -880,7 +880,7 @@ mod test {
             let sql = r.0.to_owned();
             let args = r.1.to_owned();
             println!("{}", sql);
-            assert_eq!(sql, "select * from mock_table2 where id = ?");
+            assert_eq!(sql, "select id,name,pc_link,h5_link,pc_banner_img,h5_banner_img,sort,status,remark,create_time,version,delete_flag,count from mock_table2 where id = ?");
             assert_eq!(args, vec![to_value!("1")]);
         };
         block_on(f);
@@ -918,7 +918,7 @@ mod test {
             let sql = r.0.to_owned();
             let args = r.1.to_owned();
             println!("{}", sql);
-            assert_eq!(sql, "select * from mock_table  where 1 in (?,?)");
+            assert_eq!(sql, "select id,name,pc_link,h5_link,pc_banner_img,h5_banner_img,sort,status,remark,create_time,version,delete_flag,count from mock_table  where 1 in (?,?)");
             assert_eq!(args, vec![to_value!("1"), to_value!("2")]);
         };
         block_on(f);
