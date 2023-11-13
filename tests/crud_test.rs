@@ -1017,7 +1017,7 @@ mod test {
             // let queue = Arc::new(SyncVec::new());
             // rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
             // rb.init(MockDriver {}, "test").unwrap();
-            let r = htmlsql_select_page_by_name(&PageRequest::new(1, 10), "").unwrap();
+            let r = MockTable::htmlsql_select_page_by_name(&PageRequest::new(1, 10), "").unwrap();
             println!("r: {:?}", r);
             let sql = r.get(1).unwrap().0.to_owned();
             let args = r.get(1).unwrap().1.to_owned();
@@ -1054,7 +1054,7 @@ mod test {
             // let queue = Arc::new(SyncVec::new());
             // rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
             // rb.init(MockDriver {}, "test").unwrap();
-            let r = pysql_select_page(
+            let r = MockTable::pysql_select_page(
                 &PageRequest::new(1, 10),
                 PySqlSelectPageArg {
                     name: "aaa".to_string(),

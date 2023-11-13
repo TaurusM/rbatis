@@ -38,8 +38,10 @@ macro_rules! impl_insert {
                 // executor: &dyn $crate::executor::Executor,
                 tables: &[$table],
                 batch_size: u64,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error>
-            {
+            ) -> std::result::Result<
+                Vec<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>,
+                $crate::rbdc::Error,
+            > {
                 #[$crate::py_sql(
                     "`insert into ${table_name} `
                     trim ',':
@@ -78,7 +80,8 @@ macro_rules! impl_insert {
                 //     rows_affected: 0,
                 //     last_insert_id: rbs::Value::Null,
                 // };
-                let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+                let mut res =
+                    Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
                 let ranges = $crate::sql::Page::<()>::make_ranges(tables.len() as u64, batch_size);
                 for (offset, limit) in ranges {
                     let result = insert_batch(
@@ -86,7 +89,7 @@ macro_rules! impl_insert {
                         &tables[offset as usize..limit as usize],
                         table_name.as_str(),
                     )?;
-                    res.push((result.0, result.1, false));
+                    res.push((result.0, result.1, false, None, None));
                     // .await?;
                     // result.rows_affected += exec_result.rows_affected;
                     // result.last_insert_id = exec_result.last_insert_id;
@@ -96,8 +99,10 @@ macro_rules! impl_insert {
 
             pub fn insert(
                 table: &$table,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error>
-            {
+            ) -> std::result::Result<
+                Vec<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>,
+                $crate::rbdc::Error,
+            > {
                 <$table>::insert_batch(&[table.clone()], 1)
             }
         }
@@ -137,7 +142,7 @@ macro_rules! impl_select {
     };
     ($table:ty{$fn_name:ident $(< $($gkey:ident:$gtype:path $(,)?)* >)? ($($param_key:ident:$param_type:ty $(,)?)*) -> $container:tt => $sql:expr}$(,$table_name:expr)?) => {
         impl $table{
-            pub fn $fn_name $(<$($gkey:$gtype,)*>)? ($($param_key:$param_type,)*) -> std::result::Result<(String, Vec<rbs::Value>, bool),$crate::rbdc::Error>
+            pub fn $fn_name $(<$($gkey:$gtype,)*>)? ($($param_key:$param_type,)*) -> std::result::Result<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>),$crate::rbdc::Error>
             {
                      #[$crate::py_sql("`select `
                         trim ',':
@@ -153,7 +158,7 @@ macro_rules! impl_select {
                          table_name = $crate::utils::string_util::to_snake_name(stringify!($table));
                      }
                      let result = $fn_name(&default_table,&table_name,$($param_key ,)*)?;
-                     Ok((result.0, result.1, false))
+                     Ok((result.0, result.1, false, None, None))
             }
         }
     };
@@ -178,7 +183,7 @@ macro_rules! impl_update {
         impl $table {
             pub fn update_by_column(
                 table: &$table,
-                column: &str) -> std::result::Result<(String, Vec<rbs::Value>, bool), $crate::rbdc::Error>{
+                column: &str) -> std::result::Result<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>), $crate::rbdc::Error>{
                 let columns = rbs::to_value!(table);
                 let column_value = &columns[column];
                 <$table>::update_by_column_value(table,column,column_value)
@@ -188,14 +193,14 @@ macro_rules! impl_update {
                 tables: &[$table],
                 column: &str,
                 batch_size: u64,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
                 let ranges = $crate::sql::Page::<()>::make_ranges(tables.len() as u64, batch_size);
-                let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+                let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
                 for (offset, limit) in ranges {
                     //todo better way impl batch?
                     for table in &tables[offset as usize..limit as usize]{
                        let result = <$table>::update_by_column(table,column)?;
-                       res.push((result.0, result.1, false));
+                       res.push((result.0, result.1, false, None, None));
                     }
                 }
                 Ok(res)
@@ -207,7 +212,7 @@ macro_rules! impl_update {
             pub fn $fn_name(
                 table: &$table,
                 $($param_key:$param_type,)*
-            ) -> std::result::Result<(String, Vec<rbs::Value>, bool), $crate::rbdc::Error> {
+            ) -> std::result::Result<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>), $crate::rbdc::Error> {
                 if $sql_where.is_empty(){
                     return Err($crate::rbdc::Error::from("sql_where can't be empty!"));
                 }
@@ -232,7 +237,7 @@ macro_rules! impl_update {
                   }
                   let table = rbs::to_value!(table);
                   let result = $fn_name(table_name, &table, $($param_key,)*)?;
-                  Ok((result.0, result.1, false))
+                  Ok((result.0, result.1, false, None, None))
             }
         }
     };
@@ -266,12 +271,12 @@ macro_rules! impl_delete {
                 column: &str,
                 values: &[V],
                 batch_size: u64,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value> ,bool)>, $crate::rbdc::Error> {
-                let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+            ) -> std::result::Result<Vec<(String, Vec<rbs::Value> ,bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
+                let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
                 let ranges = $crate::sql::Page::<()>::make_ranges(values.len() as u64, batch_size);
                 for (offset, limit) in ranges {
                     let result = <$table>::delete_in_column(column,&values[offset as usize..limit as usize])?;
-                    res.push((result.0, result.1, false));
+                    res.push((result.0, result.1, false, None, None));
                 }
                 Ok(res)
             }
@@ -281,7 +286,7 @@ macro_rules! impl_delete {
         impl $table {
             pub fn $fn_name$(<$($gkey:$gtype,)*>)?(
                 $($param_key:$param_type,)*
-            ) -> std::result::Result<(String, Vec<rbs::Value>, bool), $crate::rbdc::Error> {
+            ) -> std::result::Result<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>), $crate::rbdc::Error> {
                 if $sql_where.is_empty(){
                     return Err($crate::rbdc::Error::from("sql_where can't be empty!"));
                 }
@@ -298,7 +303,7 @@ macro_rules! impl_delete {
                   table_name = $crate::utils::string_util::to_snake_name(stringify!($table));
                 }
                 let sql = $fn_name(table_name, $($param_key,)*)?;
-                Ok((sql.0, sql.1, false))
+                Ok((sql.0, sql.1, false, None, None))
             }
         }
     };
@@ -410,24 +415,26 @@ macro_rules! impl_select_page {
 #[macro_export]
 macro_rules! htmlsql_select_page {
     ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $html_file:expr) => {
+        impl $table {
             pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type,)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
-            struct Inner{}
-            impl Inner{
-              #[$crate::html_sql($html_file)]
-              pub fn $fn_name(do_count:bool,page_no:u64,page_size:u64,$($param_key: &$param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
-                 $crate::impled!()
-              }
+                struct Inner{}
+                impl Inner{
+                #[$crate::html_sql($html_file)]
+                pub fn $fn_name(do_count:bool,page_no:u64,page_size:u64,$($param_key: &$param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
+                    $crate::impled!()
+                }
+                }
+                let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
+                let mut total = 0;
+                if page_request.do_count() {
+                let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
+                res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
+                }
+                let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
+                let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
+                res.push((records_value.0, records_value.1, false, None, None));
+                Ok(res)
             }
-            let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
-            let mut total = 0;
-            if page_request.do_count() {
-               let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
-               res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
-            }
-            let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
-            let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
-            res.push((records_value.0, records_value.1, false, None, None));
-            Ok(res)
          }
     }
 }
@@ -471,25 +478,27 @@ macro_rules! htmlsql_select_page {
 #[macro_export]
 macro_rules! pysql_select_page {
     ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $py_file:expr) => {
+        impl $table {
             pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
-            struct Inner{}
-            impl Inner{
-              #[$crate::py_sql($py_file)]
-              pub fn $fn_name(do_count:bool,page_no:u64,page_size:u64,$($param_key: &$param_type)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
-                 $crate::impled!()
-              }
+                struct Inner{}
+                impl Inner{
+                #[$crate::py_sql($py_file)]
+                pub fn $fn_name(do_count:bool,page_no:u64,page_size:u64,$($param_key: &$param_type)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
+                    $crate::impled!()
+                }
+                }
+                let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
+                let mut total = 0;
+                if page_request.do_count() {
+                let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
+                res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
+                }
+                let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
+                let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
+                res.push((records_value.0, records_value.1, false, None, None));
+                Ok(res)
             }
-            let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
-            let mut total = 0;
-            if page_request.do_count() {
-               let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
-               res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
-            }
-            let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
-            let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
-            res.push((records_value.0, records_value.1, false, None, None));
-            Ok(res)
-         }
+        }
     }
 }
 
@@ -505,17 +514,20 @@ macro_rules! pysql_select_page {
 /// ```
 #[macro_export]
 macro_rules! pysql {
-    ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $return_type:ty => $py_file:expr) => {
-       pub fn $fn_name($($param_key: $param_type,)*) -> $return_type{
-           pub struct Inner{};
-           impl Inner{
-               #[$crate::py_sql($py_file)]
-               pub fn $fn_name($($param_key: $param_type,)*) -> $return_type{
-                 impled!()
-               }
-           }
-           Inner::$fn_name($($param_key,)*)
-       }
+    ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $py_file:expr) => {
+        impl $table {
+            pub fn $fn_name($($param_key: $param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>), $crate::rbdc::Error>{
+                pub struct Inner{};
+                impl Inner{
+                    #[$crate::py_sql($py_file)]
+                    pub fn $fn_name($($param_key: $param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
+                        impled!()
+                    }
+                }
+                let res = Inner::$fn_name($($param_key,)*)?;
+                Ok((res.0, res.1, false, None, None))
+            }
+        }
     }
 }
 
@@ -536,16 +548,19 @@ macro_rules! pysql {
 /// ```
 #[macro_export]
 macro_rules! htmlsql {
-    ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $return_type:ty => $html_file:expr) => {
-        pub fn $fn_name($($param_key: $param_type,)*) -> $return_type{
-            pub struct Inner{};
-            impl Inner{
-            #[$crate::html_sql($html_file)]
-            pub fn $fn_name($($param_key: $param_type,)*) -> $return_type{
-              impled!()
-             }
-           }
-           Inner::$fn_name($($param_key,)*)
+    ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $html_file:expr) => {
+        impl $table {
+            pub fn $fn_name($($param_key: $param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>), $crate::rbdc::Error>{
+                pub struct Inner{};
+                impl Inner{
+                #[$crate::html_sql($html_file)]
+                pub fn $fn_name($($param_key: $param_type,)*) -> std::result::Result<(std::string::String, Vec<rbs::Value>), $crate::rbdc::Error>{
+                impled!()
+                }
+            }
+            let res = Inner::$fn_name($($param_key,)*)?;
+            Ok((res.0, res.1, false, None, None))
+            }
         }
     }
 }

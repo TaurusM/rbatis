@@ -201,10 +201,10 @@ mod test {
     #[test]
     fn test_query_decode() {
         let f = async move {
-            let mut rb = RBatis::new();
-            rb.init(MockDriver {}, "test").unwrap();
-            let queue = Arc::new(SyncVec::new());
-            rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
+            // let mut rb = RBatis::new();
+            // rb.init(MockDriver {}, "test").unwrap();
+            // let queue = Arc::new(SyncVec::new());
+            // rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
             #[html_sql(
                 r#"<mapper>
             <select id="select_by_condition">
@@ -228,18 +228,18 @@ mod test {
     #[test]
     fn test_macro() {
         let f = async move {
-            let mut rb = RBatis::new();
-            rb.init(MockDriver {}, "test").unwrap();
-            let queue = Arc::new(SyncVec::new());
-            rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
+            // let mut rb = RBatis::new();
+            // rb.init(MockDriver {}, "test").unwrap();
+            // let queue = Arc::new(SyncVec::new());
+            // rb.set_intercepts(vec![Arc::new(MockIntercept::new(queue.clone()))]);
 
-            htmlsql!(test_same_id(id: &u64)  -> Result<(String, Vec<rbs::Value>), Error> => r#"<mapper>
+            htmlsql!(test_same_id(id: &u64)  -> MockTable => r#"<mapper>
             <select id="test_same_id">
             select ${id},${id},#{id},#{id}
             </select>
             </mapper>"#);
 
-            let r = test_same_id(&1).unwrap();
+            let r = MockTable::test_same_id(&1).unwrap();
             println!("r: {:?}", r);
             let sql = r.0.to_owned();
             let args = r.1.to_owned();
