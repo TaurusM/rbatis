@@ -38,7 +38,8 @@ macro_rules! impl_insert {
                 // executor: &dyn $crate::executor::Executor,
                 tables: &[$table],
                 batch_size: u64,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error>
+            {
                 #[$crate::py_sql(
                     "`insert into ${table_name} `
                     trim ',':
@@ -95,7 +96,8 @@ macro_rules! impl_insert {
 
             pub fn insert(
                 table: &$table,
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error>
+            {
                 <$table>::insert_batch(&[table.clone()], 1)
             }
         }
@@ -337,7 +339,7 @@ macro_rules! impl_select_page {
             pub fn $fn_name(
                 page_request: &dyn $crate::sql::IPageRequest,
                 $($param_key:$param_type,)*
-            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            ) -> std::result::Result<Vec<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
                 let default_table: $table = Default::default();
                 let mut table_name = $table_name.to_string();
                 //pg,mssql can override this parameter to implement its own limit statement
@@ -360,15 +362,15 @@ macro_rules! impl_select_page {
                         `${limit_sql}`")]
                    fn $fn_name(do_count:bool,table:&$table,table_name: &str,page_no:u64,page_size:u64,page_offset:u64,limit_sql:&str,$($param_key:&$param_type,)*) -> std::result::Result<(String, Vec<rbs::Value>), $crate::rbdc::Error> {impled!()}
                 }
-                let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+                let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
                 let mut total = 0;
                 if page_request.do_count() {
                     let total_value = Inner::$fn_name(true,&default_table,&table_name,page_request.page_no(), page_request.page_size(),page_request.offset(),"",$(&$param_key,)*)?;
-                    res.push((total_value.0, total_value.1, true));
+                    res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
                 }
                 let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
                 let records_value = Inner::$fn_name(false,&default_table,&table_name,page_request.page_no(), page_request.page_size(),page_request.offset(),&limit_sql,$(&$param_key,)*)?;
-                res.push((records_value.0, records_value.1, false));
+                res.push((records_value.0, records_value.1, false, None, None));
                 Ok(res)
             }
         }
@@ -408,7 +410,7 @@ macro_rules! impl_select_page {
 #[macro_export]
 macro_rules! htmlsql_select_page {
     ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $html_file:expr) => {
-            pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type,)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type,)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
             struct Inner{}
             impl Inner{
               #[$crate::html_sql($html_file)]
@@ -416,15 +418,15 @@ macro_rules! htmlsql_select_page {
                  $crate::impled!()
               }
             }
-            let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+            let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
             let mut total = 0;
             if page_request.do_count() {
                let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
-               res.push((total_value.0, total_value.1, true));
+               res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
             }
             let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
             let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key,)*)?;
-            res.push((records_value.0, records_value.1, false));
+            res.push((records_value.0, records_value.1, false, None, None));
             Ok(res)
          }
     }
@@ -469,7 +471,7 @@ macro_rules! htmlsql_select_page {
 #[macro_export]
 macro_rules! pysql_select_page {
     ($fn_name:ident($($param_key:ident:$param_type:ty$(,)?)*) -> $table:ty => $py_file:expr) => {
-            pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool)>, $crate::rbdc::Error> {
+            pub fn $fn_name(page_request: &dyn $crate::sql::IPageRequest, $($param_key:$param_type)*) -> std::result::Result<Vec<(std::string::String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>, $crate::rbdc::Error> {
             struct Inner{}
             impl Inner{
               #[$crate::py_sql($py_file)]
@@ -477,15 +479,15 @@ macro_rules! pysql_select_page {
                  $crate::impled!()
               }
             }
-            let mut res = Vec::<(String, Vec<rbs::Value>, bool)>::new();
+            let mut res = Vec::<(String, Vec<rbs::Value>, bool, Option<u64>, Option<u64>)>::new();
             let mut total = 0;
             if page_request.do_count() {
                let total_value = Inner::$fn_name(true, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
-               res.push((total_value.0, total_value.1, true));
+               res.push((total_value.0, total_value.1, true, Some(page_request.offset()), Some(page_request.page_size())));
             }
             let mut page = $crate::sql::Page::<$table>::new_total(page_request.page_no(), page_request.page_size(), total);
             let records_value = Inner::$fn_name(false, page_request.offset(), page_request.page_size(), $(&$param_key)*)?;
-            res.push((records_value.0, records_value.1, false));
+            res.push((records_value.0, records_value.1, false, None, None));
             Ok(res)
          }
     }
